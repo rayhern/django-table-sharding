@@ -15,7 +15,7 @@ Quick start
 Every time migrations are run it will copy changes from the source
 table to the sharded tables.
 
-Set the model manager to the models you want to shard into their own tables.
+Set the model manager to the models you want to shard into separate tables.
 Example::
 
     objects = ShardManager()
@@ -33,3 +33,9 @@ will be applied to all shards in the database.
 
 Before deploying to production please make sure everything fits your needs.
 
+Example Usage
+-------------
+
+Person.objects.shard(1).all()    - Shows all people from first shard suffix.
+
+Person.objects.copy_table('api_person', 'api_person_1').   - To create a new shard from existing source database.
