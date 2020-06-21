@@ -10,11 +10,11 @@ Detailed documentation is in the "docs" directory.
 Quick start
 -----------
 
-1. Add "django-table-sharding" to your INSTALLED_APPS setting like this::
+1. Add "django_table_sharding" to your INSTALLED_APPS setting like this::
 
     INSTALLED_APPS = [
         ...
-        'django-table-sharding',
+        'django_table_sharding',
     ]
 
 Every time migrations are run it will copy changes from the source

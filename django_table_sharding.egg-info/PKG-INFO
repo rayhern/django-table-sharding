@@ -1,9 +1,9 @@
 Metadata-Version: 1.1
 Name: django-table-sharding
-Version: 0.2
+Version: 0.4
 Summary: A Django app to automatically handle sharding model tables in MySQL.
-Home-page: http://www.raysoftinc.com/
-Author: Ray Hernandez
+Home-page: https://github.com/rayhern/django-table-sharding
+Author: Raymond Hernandez
 Author-email: bizong@gmail.com
 License: BSD
 Description: =====================
@@ -18,11 +18,11 @@ Description: =====================
         Quick start
         -----------
         
-        1. Add "django-table-sharding" to your INSTALLED_APPS setting like this::
+        1. Add "django_table_sharding" to your INSTALLED_APPS setting like this::
         
             INSTALLED_APPS = [
                 ...
-                'django-table-sharding',
+                'django_table_sharding',
             ]
         
         Every time migrations are run it will copy changes from the source

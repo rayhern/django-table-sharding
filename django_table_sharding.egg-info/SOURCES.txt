@@ -17,7 +17,6 @@ django_table_sharding.egg-info/not-zip-safe
 django_table_sharding.egg-info/top_level.txt
 django_table_sharding/management/.DS_Store
 django_table_sharding/management/__init__.py
-django_table_sharding/management/__pycache__/__init__.cpython-37.pyc
 django_table_sharding/management/commands/__init__.py
 django_table_sharding/management/commands/migrate.py
 django_table_sharding/management/commands/__pycache__/__init__.cpython-37.pyc
