@@ -39,3 +39,6 @@ Example Usage
 Person.objects.shard(1).all()    - Shows all people from first shard suffix.
 
 Person.objects.copy_table('api_person', 'api_person_1').   - To create a new shard from existing source database.
+
+Run migration command as normal.
+python manage.py migrate
