@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class ShardingConfig(AppConfig):
-    name = 'sharding'
+    name = 'django_table_sharding'
