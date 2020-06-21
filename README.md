@@ -10,6 +10,8 @@ Detailed documentation is in the "docs" directory.
 Quick start
 -----------
 
+`pip install django-table-sharding`
+
 Add "django_table_sharding" to your INSTALLED_APPS.
 
 Every time migrations are run it will copy changes from the source
