@@ -17,10 +17,6 @@ import traceback
     
     Sharded models can foreign key to other models, but other models cannot foreign key to sharded tables.
     
-    
-    TODO:
-        Remove multiple db migration.
-    
 '''
 
 
