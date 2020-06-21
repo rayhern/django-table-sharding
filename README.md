@@ -36,9 +36,14 @@ Before deploying to production please make sure everything fits your needs.
 Example Usage
 -------------
 
-Person.objects.shard(1).all()    - Shows all people from first shard suffix.
+`from django_table_sharding.managers import ShardManager`
+- Import the ShardManager model manager for Django models.
 
-Person.objects.copy_table('api_person', 'api_person_1').   - To create a new shard from existing source database.
+`Person.objects.shard(1).all()`    
+- Shows all people from first shard suffix.
 
-Run migration command as normal.
-python manage.py migrate
+`Person.objects.copy_table('api_person', 'api_person_1')`
+- To create a new shard from existing source database.
+
+`python manage.py migrate`
+- Run migration command as normal.
