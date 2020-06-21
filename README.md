@@ -10,7 +10,7 @@ Detailed documentation is in the "docs" directory.
 Quick start
 -----------
 
-1. Add "django_table_sharding" to your INSTALLED_APPS setting like this::
+1. Add "django_table_sharding" to your INSTALLED_APPS
 
 Every time migrations are run it will copy changes from the source
 table to the sharded tables.
