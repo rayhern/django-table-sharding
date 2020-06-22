@@ -34,6 +34,24 @@ class ShardManager(models.Manager):
             f.cached_col = Col(meta.db_table, f)
         return super().using(self.db)
 
+    def shard_exists(self, table_suffix, db='default'):
+        """
+        Check if sharded table exists.
+        """
+        meta = getattr(self.model, '_meta')
+        db_table = '%s_%s_%s' % (
+            str(meta.app_label),
+            str(self.model.__name__.lower()), table_suffix)
+        try:
+            with connections[db].cursor() as cursor:
+                cursor.execute('SHOW TABLES LIKE "%s%%"' % db_table)
+                rows = cursor.fetchall()
+                if len(rows) > 0:
+                    return True
+        except:
+            pass
+        return False
+
     @staticmethod
     def copy_table(source_table, destination_table, db='default'):
         """
