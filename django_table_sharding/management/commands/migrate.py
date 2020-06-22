@@ -109,7 +109,8 @@ class Command(MigrationCommand):
                             if db_table != '':
                                 add_unique_togethers.append((db_table, field_list))
 
-        if len(model_changes) == 0 and len(add_unique_togethers) == 0 and len(remove_unique_togethers) == 0:
+        if len(model_changes) == 0 and len(add_unique_togethers) == 0 and len(remove_unique_togethers) == 0 and \
+                len(rename_fields) == 0:
             print('  No shard migrations to apply.\n')
 
         # Run Django supplied migrate command.
