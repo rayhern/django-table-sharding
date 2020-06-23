@@ -1,6 +1,6 @@
 
-Django-Table-Sharding
----------------------
+Django-Table-Sharding 0.6
+-------------------------
 
 Django table sharding is an app that will allow you to shard your database tables in the
 same database using a shard key or shard suffix.
