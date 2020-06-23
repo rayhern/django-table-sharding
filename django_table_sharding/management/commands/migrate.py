@@ -12,11 +12,11 @@ import traceback
     Custom Management Command for Table Sharding.
     Version 1.3
     By: Ray Hernandez
-    
+
     ManyToManyField, and OneToOneField are not supported.
-    
+
     Sharded models can foreign key to other models, but other models cannot foreign key to sharded tables.
-    
+
 '''
 
 
@@ -90,10 +90,8 @@ class Command(MigrationCommand):
                     model_name = op.name
                     if model_name in models_with_shard:
                         db_table = ''
-                        model = None
                         for m in all_models:
                             if str(m.__name__).lower() == model_name:
-                                # model = m
                                 meta = getattr(m, '_meta')
                                 db_table = meta.db_table
                                 break
@@ -147,11 +145,14 @@ class Command(MigrationCommand):
         tables = self.get_sharded_tables(cursor, db_table)
 
         # Could not find the field name, it must be a foreign key.
-        rows = self.run_sql(cursor, "SELECT COLUMN_TYPE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s' AND COLUMN_NAME = '%s';" % (db_table, new_field))
+        rows = self.run_sql(cursor, """
+            SELECT COLUMN_TYPE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_NAME = '%s' AND COLUMN_NAME = '%s';""" % (db_table, new_field))
         if len(rows) > 0:
             column_type = rows[0][0]
             for table in tables:
-                rows = self.run_sql(cursor, 'ALTER TABLE %s CHANGE %s %s %s;' % (table, old_field, new_field, column_type))
+                rows = self.run_sql(cursor, 'ALTER TABLE %s CHANGE %s %s %s;' % (
+                    table, old_field, new_field, column_type))
 
     def copy_table_changes(self, db_table, field_name, default_value, max_length, db='default'):
         """
@@ -173,10 +174,14 @@ class Command(MigrationCommand):
 
         # Get info on field that was altered. If it was dropped, we drop the column from all other tables.
         try:
-            rows = self.run_sql(cursor, "SELECT COLUMN_NAME,COLUMN_TYPE,IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s' AND COLUMN_NAME = '%s';" % (db_table, field_name))
+            rows = self.run_sql(cursor, """
+                SELECT COLUMN_NAME,COLUMN_TYPE,IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = '%s' AND COLUMN_NAME = '%s';""" % (db_table, field_name))
             if len(rows) == 0:
                 # Could not find the field name, it must be a foreign key.
-                rows = self.run_sql(cursor, "SELECT COLUMN_NAME,COLUMN_TYPE,IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s' AND COLUMN_NAME = '%s_id';" % (db_table, field_name))
+                rows = self.run_sql(cursor, """
+                    SELECT COLUMN_NAME,COLUMN_TYPE,IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE TABLE_NAME = '%s' AND COLUMN_NAME = '%s_id';""" % (db_table, field_name))
                 if len(rows) > 0:
                     field_name = '%s_id' % field_name
                     foreign_key = True
@@ -194,35 +199,48 @@ class Command(MigrationCommand):
                 if nullable == 'YES':
                     for table in tables:
                         # check to make sure column doesn't already exist.
-                        rows = self.run_sql(cursor, 'SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = "%s" AND COLUMN_NAME="%s";' % (table, field_name))
+                        rows = self.run_sql(cursor, '''
+                            SELECT * FROM INFORMATION_SCHEMA.COLUMNS 
+                            WHERE TABLE_NAME = "%s" AND COLUMN_NAME="%s";''' % (table, field_name))
                         if len(rows) == 0:
-                            rows = self.run_sql(cursor, 'ALTER TABLE %s ADD COLUMN %s %s;' % (table, column_name, data_type))
+                            rows = self.run_sql(cursor, 'ALTER TABLE %s ADD COLUMN %s %s;' % (
+                                table, column_name, data_type))
                             created = True
                 else:
                     if default_value is True:
                         for table in tables:
-                            rows = self.run_sql(cursor, 'SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = "%s" AND COLUMN_NAME="%s";' % (table, field_name))
+                            rows = self.run_sql(cursor, '''
+                                SELECT * FROM INFORMATION_SCHEMA.COLUMNS 
+                                WHERE TABLE_NAME = "%s" AND COLUMN_NAME="%s";''' % (table, field_name))
                             if len(rows) == 0:
-                                rows = self.run_sql(cursor, 'ALTER TABLE %s ADD COLUMN %s %s DEFAULT "1";' % (table, column_name, data_type))
+                                rows = self.run_sql(cursor, 'ALTER TABLE %s ADD COLUMN %s %s DEFAULT "1";' % (
+                                    table, column_name, data_type))
                                 created = True
                     elif default_value is False:
                         for table in tables:
-                            rows = self.run_sql(cursor,'SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = "%s" AND COLUMN_NAME="%s";' % (table, field_name))
+                            rows = self.run_sql(cursor, '''
+                                SELECT * FROM INFORMATION_SCHEMA.COLUMNS 
+                                WHERE TABLE_NAME = "%s" AND COLUMN_NAME="%s";''' % (table, field_name))
                             if len(rows) == 0:
-                                rows = self.run_sql(cursor, 'ALTER TABLE %s ADD COLUMN %s %s DEFAULT "0";' % (table, column_name, data_type))
+                                rows = self.run_sql(cursor, 'ALTER TABLE %s ADD COLUMN %s %s DEFAULT "0";' % (
+                                    table, column_name, data_type))
                                 created = True
                     else:
                         for table in tables:
-                            rows = self.run_sql(cursor, 'SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = "%s" AND COLUMN_NAME="%s";' % (table, field_name))
+                            rows = self.run_sql(cursor, '''
+                                SELECT * FROM INFORMATION_SCHEMA.COLUMNS 
+                                WHERE TABLE_NAME = "%s" AND COLUMN_NAME="%s";''' % (table, field_name))
                             if len(rows) == 0:
                                 if 'datetime' not in data_type and 'NOT_PROVIDED' not in str(default_value):
                                     # if this is not a datetimefield, set the default value from
                                     # migration operation.
-                                    rows = self.run_sql(cursor, 'ALTER TABLE %s ADD COLUMN %s %s DEFAULT "%s";' % (table, column_name, data_type, default_value))
+                                    rows = self.run_sql(cursor, 'ALTER TABLE %s ADD COLUMN %s %s DEFAULT "%s";' % (
+                                        table, column_name, data_type, default_value))
                                 else:
                                     # Django will handle auto_add and auto_add_now. MySQL 5.6 does not allow
                                     # setting default value.
-                                    rows = self.run_sql(cursor, 'ALTER TABLE %s ADD COLUMN %s %s;' % (table, column_name, data_type))
+                                    rows = self.run_sql(cursor, 'ALTER TABLE %s ADD COLUMN %s %s;' % (
+                                        table, column_name, data_type))
                                 created = True
 
                 # We added a field to our databases, lets see if we added an index from the original mysql table.
@@ -232,13 +250,20 @@ class Command(MigrationCommand):
                 # Field has been dropped from original db, lets drop the field on all shards.
                 # Because column doesn't exist in source database, we must check field in both ways,
                 # on the first sharded table: field_name, and field_name_id
-                rows = self.run_sql(cursor, 'SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = "%s" AND COLUMN_NAME="%s";' % (tables[0], field_name))
+                rows = self.run_sql(cursor, '''
+                    SELECT * FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE TABLE_NAME = "%s" AND COLUMN_NAME="%s";''' % (tables[0], field_name))
                 if len(rows) == 0:
-                    rows = self.run_sql(cursor, 'SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = "%s" AND COLUMN_NAME="%s_id";' % (tables[0], field_name))
+                    rows = self.run_sql(cursor, '''
+                        SELECT * FROM INFORMATION_SCHEMA.COLUMNS 
+                        WHERE TABLE_NAME = "%s" AND COLUMN_NAME="%s_id";''' % (tables[0], field_name))
                     if len(rows) > 0:
                         field_name = '%s_id' % field_name
                 for table in tables:
-                    rows = self.run_sql(cursor, "SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE COLUMN_NAME='%s' AND REFERENCED_TABLE_NAME IS NOT NULL AND TABLE_NAME='%s';" % (field_name, table))
+                    rows = self.run_sql(cursor, """
+                        SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
+                        WHERE COLUMN_NAME='%s' AND REFERENCED_TABLE_NAME IS NOT NULL AND TABLE_NAME='%s';""" % (
+                        field_name, table))
                     if len(rows) > 0:
                         constraint_name = rows[0][0]
                         rows = self.run_sql(cursor, 'ALTER TABLE %s DROP FOREIGN KEY %s' % (table, constraint_name))
@@ -249,7 +274,9 @@ class Command(MigrationCommand):
 
         # If we got a max_length in the migration operation, lets set it on the model.
         if max_length is not None and created is False and dropped is False:
-            rows = self.run_sql(cursor, "SELECT COLUMN_NAME,COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s' AND COLUMN_NAME = '%s';" % (db_table, field_name))
+            rows = self.run_sql(cursor, """
+                SELECT COLUMN_NAME,COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = '%s' AND COLUMN_NAME = '%s';""" % (db_table, field_name))
             if len(rows) > 0:
                 column_name = rows[0][0]
                 column_type = rows[0][1]
@@ -258,7 +285,9 @@ class Command(MigrationCommand):
 
         # If we got a default value set, but that was the only change to the model, lets set the default value.
         if default_value != '' and created is False and dropped is False:
-            rows = self.run_sql(cursor, "SELECT COLUMN_NAME,COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s' AND COLUMN_NAME = '%s';" % (db_table, field_name))
+            rows = self.run_sql(cursor, """
+                SELECT COLUMN_NAME,COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = '%s' AND COLUMN_NAME = '%s';""" % (db_table, field_name))
             if len(rows) > 0:
                 column_name = rows[0][0]
                 column_type = rows[0][1]
@@ -269,7 +298,8 @@ class Command(MigrationCommand):
                         default_value = '0'
                     if default_value is not None:
                         if 'datetime' not in column_type and 'NOT_PROVIDED' not in str(default_value):
-                            rows = self.run_sql(cursor, "ALTER TABLE %s ALTER %s SET DEFAULT '%s';" % (table, column_name, default_value))
+                            rows = self.run_sql(cursor, "ALTER TABLE %s ALTER %s SET DEFAULT '%s';" % (
+                                table, column_name, default_value))
                     else:
                         # default value is null.
                         rows = self.run_sql(cursor, "ALTER TABLE %s MODIFY %s %s;" % (table, column_name, column_type))
@@ -285,9 +315,13 @@ class Command(MigrationCommand):
                     fk_table = meta.db_table
                     # all_models = [str(m.__name__).lower() for m in all_models if hasattr(m.objects, 'shard')]
                     for table in tables:
-                        rows = self.run_sql(cursor, "SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE COLUMN_NAME='%s' AND REFERENCED_TABLE_NAME IS NOT NULL AND TABLE_NAME='%s';" % (field_name, table))
+                        rows = self.run_sql(cursor, """
+                            SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
+                            WHERE COLUMN_NAME='%s' AND REFERENCED_TABLE_NAME IS NOT NULL 
+                            AND TABLE_NAME='%s';""" % (field_name, table))
                         if len(rows) == 0:
-                            rows = self.run_sql(cursor, 'ALTER TABLE %s ADD FOREIGN KEY (%s) REFERENCES %s(id);' % (table, field_name, fk_table))
+                            rows = self.run_sql(cursor, 'ALTER TABLE %s ADD FOREIGN KEY (%s) REFERENCES %s(id);' % (
+                                table, field_name, fk_table))
                     break
 
         # Close the connection when we are finished with entire process.
@@ -303,13 +337,17 @@ class Command(MigrationCommand):
         """
         # First we get all indexes on our old db.
         # SHOW INDEX FROM api_lead WHERE COLUMN_NAME="phone_number" AND KEY_NAME NOT LIKE '%_uniq';
-        rows = self.run_sql(cursor, 'SHOW INDEX FROM %s WHERE COLUMN_NAME="%s" AND KEY_NAME NOT LIKE "%%_uniq";' % (db_table, field_name))
+        rows = self.run_sql(cursor, '''
+            SHOW INDEX FROM %s 
+            WHERE COLUMN_NAME="%s" AND KEY_NAME NOT LIKE "%%_uniq";''' % (db_table, field_name))
         if len(rows) > 0:
             # unique field returned from original table.
             unique_row = rows[0][1]
             for table in tables:
                 # Check to make sure the index doesn't already exist.
-                rows = self.run_sql(cursor, 'SHOW INDEX FROM %s WHERE COLUMN_NAME="%s" AND KEY_NAME NOT LIKE "%%_uniq";' % (table, field_name))
+                rows = self.run_sql(cursor, '''
+                    SHOW INDEX FROM %s WHERE COLUMN_NAME="%s" 
+                    AND KEY_NAME NOT LIKE "%%_uniq";''' % (table, field_name))
                 if len(rows) > 0:
                     # we have an index to change.
                     rows = self.run_sql(cursor, 'ALTER TABLE %s DROP INDEX %s' % (table, field_name))
@@ -321,7 +359,9 @@ class Command(MigrationCommand):
         elif len(rows) == 0:
             # Remove existing index, if we no longer have an index in table.
             for table in tables:
-                rows = self.run_sql(cursor, 'SHOW INDEX FROM %s WHERE COLUMN_NAME="%s" AND KEY_NAME NOT LIKE "%%_uniq";' % (table, field_name))
+                rows = self.run_sql(cursor, '''
+                    SHOW INDEX FROM %s WHERE COLUMN_NAME="%s" AND 
+                    KEY_NAME NOT LIKE "%%_uniq";''' % (table, field_name))
                 if len(rows) > 0:
                     rows = self.run_sql(cursor, 'ALTER TABLE %s DROP INDEX %s' % (table, field_name))
 
@@ -333,7 +373,9 @@ class Command(MigrationCommand):
         tables = self.get_sharded_tables(cursor, db_table)
 
         for table in tables:
-            rows = self.run_sql(cursor, 'SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME = "%s" AND CONSTRAINT_TYPE = "UNIQUE" AND CONSTRAINT_NAME LIKE "%%_uniq";' % table)
+            rows = self.run_sql(cursor, '''
+                SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS 
+                WHERE TABLE_NAME = "%s" AND CONSTRAINT_TYPE = "UNIQUE" AND CONSTRAINT_NAME LIKE "%%_uniq";''' % table)
             if len(rows) > 0:
                 constraint_name = rows[0][0]
                 rows = self.run_sql(cursor, 'ALTER TABLE %s DROP INDEX %s' % (table, constraint_name))
@@ -357,11 +399,15 @@ class Command(MigrationCommand):
 
         real_field_list = []
         for field_name in field_list:
-            rows = self.run_sql(cursor, "SELECT COLUMN_NAME,COLUMN_TYPE,IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s' AND COLUMN_NAME = '%s';" % (db_table, field_name))
+            rows = self.run_sql(cursor, """
+                SELECT COLUMN_NAME,COLUMN_TYPE,IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = '%s' AND COLUMN_NAME = '%s';""" % (db_table, field_name))
             real_field = field_name
             if len(rows) == 0:
                 # Could not find the field name, it must be a foreign key.
-                rows = self.run_sql(cursor, "SELECT COLUMN_NAME,COLUMN_TYPE,IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s' AND COLUMN_NAME = '%s_id';" % (db_table, field_name))
+                rows = self.run_sql(cursor, """
+                    SELECT COLUMN_NAME,COLUMN_TYPE,IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE TABLE_NAME = '%s' AND COLUMN_NAME = '%s_id';""" % (db_table, field_name))
                 if len(rows) > 0:
                     real_field = '%s_id' % field_name
             else:
@@ -394,10 +440,15 @@ class Command(MigrationCommand):
         (db does not need to be past, since we are using corresponding cursor.)
         """
         try:
-            print('sql> %s' % sql)
+            # For debugging.
+            print('sql> %s' % self.normalize_spaces(sql.strip()))
             cursor.execute(sql)
             rows = cursor.fetchall()
             return rows
         except:
             print(traceback.format_exc())
         return []
+
+    def normalize_spaces(self, text):
+        """Used for cleaning continuous white space in strings."""
+        return re.sub(r'\s+', ' ', str(text))
