@@ -47,3 +47,6 @@ Example Usage
 
 `python manage.py migrate`
 - Run migration command as normal.
+
+`Person.objects.shard_exists(5)`
+- Returns True/False if (shard) exists in the database. If it doesn't exist, you can create it with copy_table().
