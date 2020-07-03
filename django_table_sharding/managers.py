@@ -1,9 +1,15 @@
 from django.db import models, connections
 from django.db.models.expressions import Col
+from django.db import models
+
+
+class ShardException(Exception):
+    pass
 
 
 # Specific model manager to not only work with sharding, but also to work with migrations.
 class ShardManager(models.Manager):
+
     def shard(self, table_suffix, db='default'):
         """
         Use a shard of the table and set it to the model.
@@ -17,7 +23,7 @@ class ShardManager(models.Manager):
         # Without clearing the concrete cached fields, we cannot switch between shards in a single session.
         for f in meta.concrete_fields:
             f.cached_col = Col(meta.db_table, f)
-        return super().using(self.db)
+        return super(ShardManager, self).using(self.db)
 
     def default(self):
         """
@@ -32,7 +38,7 @@ class ShardManager(models.Manager):
         # Without clearing the concrete cached fields, we cannot switch between shards in a single session.
         for f in meta.concrete_fields:
             f.cached_col = Col(meta.db_table, f)
-        return super().using(self.db)
+        return super(ShardManager, self).using(self.db)
 
     def shard_exists(self, table_suffix, db='default'):
         """
@@ -62,3 +68,20 @@ class ShardManager(models.Manager):
                 cursor.execute('CREATE TABLE IF NOT EXISTS %s LIKE %s;' % (destination_table, source_table))
         except:
             pass
+
+
+class ShardedModel(models.Model):
+    def save(self, *args, **kwargs):
+        if 'shard' in kwargs:
+            shard = kwargs.pop('shard')
+            db_table = '%s_%s_%s' % (self._meta.app_label, self._meta.verbose_name, shard)
+            self._meta.db_table = db_table
+            for f in self._meta.concrete_fields:
+                f.cached_col = Col(self._meta.db_table, f)
+            super(ShardedModel, self).save(*args, **kwargs)
+        else:
+            raise ShardException('No shard specified in save.')
+
+    class Meta:
+        abstract = True
+

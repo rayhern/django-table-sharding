@@ -6,6 +6,7 @@ from django.db.migrations.executor import MigrationExecutor
 from datetime import datetime
 import re
 import traceback
+import time
 
 '''
 
@@ -50,6 +51,7 @@ class Command(MigrationCommand):
         for p in plan:
             for op in p[0].operations:
                 max_length = None
+                fk_table = None
                 if hasattr(op, 'model_name'):
                     model_name = op.model_name
                     field_name = op.name
@@ -78,11 +80,16 @@ class Command(MigrationCommand):
                             if hasattr(op.field, 'max_length'):
                                 max_length = op.field.max_length
 
+                            if hasattr(op.field, 'related_model'):
+                                fk_table = op.field.related_model
+                                fk_table = fk_table.replace('.', '_').lower()
+                                print('fk table: %s' % fk_table)
+
                         for m in all_models:
                             if str(m.__name__).lower() == model_name:
                                 meta = getattr(m, '_meta')
                                 db_table = meta.db_table
-                                model_changes.append((db_table, field_name, default_value, max_length))
+                                model_changes.append((db_table, field_name, default_value, max_length, fk_table))
                                 break
                 # Unique together operations
                 elif hasattr(op, 'unique_together'):
@@ -118,7 +125,7 @@ class Command(MigrationCommand):
         if len(model_changes) > 0:
             print('\nMigrating shards...')
             for change in model_changes:
-                self.copy_table_changes(change[0], change[1], change[2], change[3], db=options['database'])
+                self.copy_table_changes(change[0], change[1], change[2], change[3], change[4], db=options['database'])
             print('Finished!\n')
 
         # Add all unique together constraints to sharded tables.
@@ -154,7 +161,7 @@ class Command(MigrationCommand):
                 rows = self.run_sql(cursor, 'ALTER TABLE %s CHANGE %s %s %s;' % (
                     table, old_field, new_field, column_type))
 
-    def copy_table_changes(self, db_table, field_name, default_value, max_length, db='default'):
+    def copy_table_changes(self, db_table, field_name, default_value, max_length, fk_table, db='default'):
         """
         Copy all changes from the source db table on field that has changed.
         This will also call compare_indexes().
@@ -306,23 +313,15 @@ class Command(MigrationCommand):
 
         # Handle foreign keys.
         if foreign_key is True and dropped is False:
-            # Get all models and match it with our field id.
-            models = apps.get_models(include_auto_created=True, include_swapped=True)
-            model_name = field_name.replace('_id', '')
-            for m in models:
-                if model_name == str(m.__name__).lower():
-                    meta = getattr(m, '_meta')
-                    fk_table = meta.db_table
-                    # all_models = [str(m.__name__).lower() for m in all_models if hasattr(m.objects, 'shard')]
-                    for table in tables:
-                        rows = self.run_sql(cursor, """
-                            SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
-                            WHERE COLUMN_NAME='%s' AND REFERENCED_TABLE_NAME IS NOT NULL 
-                            AND TABLE_NAME='%s';""" % (field_name, table))
-                        if len(rows) == 0:
-                            rows = self.run_sql(cursor, 'ALTER TABLE %s ADD FOREIGN KEY (%s) REFERENCES %s(id);' % (
-                                table, field_name, fk_table))
-                    break
+            for table in tables:
+                rows = self.run_sql(cursor, """
+                    SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
+                    WHERE COLUMN_NAME='%s' AND REFERENCED_TABLE_NAME IS NOT NULL 
+                    AND TABLE_NAME='%s';""" % (field_name, table))
+                if len(rows) == 0:
+                    rows = self.run_sql(cursor, 'ALTER TABLE %s ADD FOREIGN KEY (%s) REFERENCES %s(id);' % (
+                        table, field_name, fk_table))
+
 
         # Close the connection when we are finished with entire process.
         try:
