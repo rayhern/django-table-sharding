@@ -31,6 +31,13 @@ Sharded models cannot contain OneToOneField, or ManyToManyField, for same reason
 When running migrations the normal migration will run as normal, and then changes to source table,
 will be applied to all shards in the database.
 
+You also must declare your sharded models in this way...ShardedModel inherits from models.Model.
+
+    from django_table_sharding.managers import ShardedModel
+    
+    class Person(ShardedModel):
+        etc...
+
 Before deploying to production please make sure everything fits your needs.
 
 Example Usage
@@ -50,3 +57,6 @@ Example Usage
 
 `Person.objects.shard_exists(5)`
 - Returns True/False if (shard) exists in the database. If it doesn't exist, you can create it with copy_table().
+
+`person.save(shard=1)`
+- Saves a model instance to the specified shard.
