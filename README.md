@@ -1,6 +1,6 @@
 
-django-table-sharding 0.6
--------------------------
+django-table-sharding
+---------------------
 
 Django table sharding is an app that will allow you to shard your database tables in the
 same database using a shard key or shard suffix.
@@ -16,7 +16,7 @@ Every time migrations are run it will copy changes from the source
 table to the sharded tables.
 
 Set the model manager to the models you want to shard into separate tables.
-Example::
+Example:
 
     objects = ShardManager()
 
@@ -47,3 +47,6 @@ Example Usage
 
 `python manage.py migrate`
 - Run migration command as normal.
+
+`Person.objects.shard_exists(5)`
+- Returns True/False if (shard) exists in the database. If it doesn't exist, you can create it with copy_table().
