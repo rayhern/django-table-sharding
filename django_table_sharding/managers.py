@@ -167,6 +167,17 @@ class ShardedModel(models.Model):
         else:
             raise ShardException('No shard/table suffix specified in save.')
 
+    def delete(self, *args, **kwargs):
+        if len(args) > 0:
+            shard = args[0]
+            db_table = '%s_%s_%s' % (self._meta.app_label, str(self._meta.model.__name__).lower(), shard)
+            self._meta.db_table = db_table
+            for f in self._meta.concrete_fields:
+                f.cached_col = Col(self._meta.db_table, f)
+            return super(ShardedModel, self).delete(**kwargs)
+        else:
+            raise ShardException('No shard/table suffix specified in delete.')
+
     class Meta:
         abstract = True
 

@@ -1,12 +1,11 @@
-from django.conf import settings
+
 from django.core.management.commands.migrate import Command as MigrationCommand
 from django.apps import apps
 from django.db import connection, connections
 from django.db.migrations.executor import MigrationExecutor
-from datetime import datetime
 import re
 import traceback
-import time
+
 
 '''
 
@@ -335,7 +334,6 @@ class Command(MigrationCommand):
                 if len(rows) == 0:
                     rows = self.run_sql(cursor, 'ALTER TABLE %s ADD FOREIGN KEY (%s) REFERENCES %s(%s);' % (
                         table, field_name, fk_table, fk_pk))
-
 
         # Close the connection when we are finished with entire process.
         try:
