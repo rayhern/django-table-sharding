@@ -167,6 +167,9 @@ class ShardManager(models.Manager):
 
 
 class ShardedModel(models.Model):
+
+    objects = ShardManager()
+
     def save(self, *args, **kwargs):
         if len(args) > 0:
             shard = args[0]

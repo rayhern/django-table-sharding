@@ -12,13 +12,13 @@ Quick start
 
 Add "django_table_sharding" to your INSTALLED_APPS.
 
+    INSTALLED_APPS = [
+        ...
+        'django_table_sharding',
+    ]
+
 Every time migrations are run it will copy changes from the source
 table to the sharded tables.
-
-Set the model manager to the models you want to shard into separate tables.
-Example:
-
-    objects = ShardManager()
 
 The migration process will automatically find all sharded models and apply the
 new migrations.
