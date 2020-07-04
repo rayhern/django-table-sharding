@@ -52,6 +52,7 @@ class Command(MigrationCommand):
             for op in p[0].operations:
                 max_length = None
                 fk_table = None
+                fk_primary_key = None
                 if hasattr(op, 'model_name'):
                     model_name = op.model_name
                     field_name = op.name
@@ -82,14 +83,27 @@ class Command(MigrationCommand):
 
                             if hasattr(op.field, 'related_model'):
                                 fk_table = op.field.related_model
-                                fk_table = fk_table.replace('.', '_').lower()
-                                print('fk table: %s' % fk_table)
+                                fk_model = None
+                                if fk_table is not None:
+                                    fk_table = fk_table.replace('.', '_').lower()
+                                    for m in all_models:
+                                        if m._meta.db_table == fk_table:
+                                            fk_model = m
+                                            break
+                                    if fk_model is not None:
+                                        for field in fk_model._meta.get_fields():
+                                            if hasattr(field, 'primary_key'):
+                                                if field.primary_key is True:
+                                                    fk_primary_key = field.column
+
+                                    print('fk table: %s. fk primary key: %s.' % (fk_table, fk_primary_key))
 
                         for m in all_models:
                             if str(m.__name__).lower() == model_name:
                                 meta = getattr(m, '_meta')
                                 db_table = meta.db_table
-                                model_changes.append((db_table, field_name, default_value, max_length, fk_table))
+                                model_changes.append((
+                                    db_table, field_name, default_value, max_length, fk_table, fk_primary_key))
                                 break
                 # Unique together operations
                 elif hasattr(op, 'unique_together'):
@@ -125,7 +139,7 @@ class Command(MigrationCommand):
         if len(model_changes) > 0:
             print('\nMigrating shards...')
             for change in model_changes:
-                self.copy_table_changes(change[0], change[1], change[2], change[3], change[4], db=options['database'])
+                self.copy_table_changes(change[0], change[1], change[2], change[3], change[4], change[5], db=options['database'])
             print('Finished!\n')
 
         # Add all unique together constraints to sharded tables.
@@ -161,7 +175,7 @@ class Command(MigrationCommand):
                 rows = self.run_sql(cursor, 'ALTER TABLE %s CHANGE %s %s %s;' % (
                     table, old_field, new_field, column_type))
 
-    def copy_table_changes(self, db_table, field_name, default_value, max_length, fk_table, db='default'):
+    def copy_table_changes(self, db_table, field_name, default_value, max_length, fk_table, fk_pk, db='default'):
         """
         Copy all changes from the source db table on field that has changed.
         This will also call compare_indexes().
@@ -312,15 +326,15 @@ class Command(MigrationCommand):
                         rows = self.run_sql(cursor, "ALTER TABLE %s MODIFY %s %s;" % (table, column_name, column_type))
 
         # Handle foreign keys.
-        if foreign_key is True and dropped is False:
+        if foreign_key is True and dropped is False and fk_pk is not None:
             for table in tables:
                 rows = self.run_sql(cursor, """
                     SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
                     WHERE COLUMN_NAME='%s' AND REFERENCED_TABLE_NAME IS NOT NULL 
                     AND TABLE_NAME='%s';""" % (field_name, table))
                 if len(rows) == 0:
-                    rows = self.run_sql(cursor, 'ALTER TABLE %s ADD FOREIGN KEY (%s) REFERENCES %s(id);' % (
-                        table, field_name, fk_table))
+                    rows = self.run_sql(cursor, 'ALTER TABLE %s ADD FOREIGN KEY (%s) REFERENCES %s(%s);' % (
+                        table, field_name, fk_table, fk_pk))
 
 
         # Close the connection when we are finished with entire process.
