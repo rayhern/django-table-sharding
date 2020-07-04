@@ -54,6 +54,7 @@ class ShardManager(models.Manager):
             str(meta.app_label),
             str(self.model.__name__.lower()), table_suffix)
 
+        delete_keys = []
         for k, v in kwargs.items():
             if isinstance(v, datetime.datetime):
                 kwargs[k] = v.strftime('%Y-%m-%d %H:%M:%S')
@@ -66,6 +67,11 @@ class ShardManager(models.Manager):
                     kwargs[k] = 1
                 else:
                     kwargs[k] = 0
+            elif v is None:
+                delete_keys.append(k)
+
+        for delete in delete_keys:
+            del kwargs[delete]
 
         placeholders = ', '.join(['%s'] * len(kwargs.values()))
         columns = ', '.join(kwargs.keys())
@@ -91,6 +97,7 @@ class ShardManager(models.Manager):
             str(self.model.__name__.lower()), table_suffix)
 
         for dict_fields in list_of_dicts:
+            delete_keys = []
             for k, v in dict_fields.items():
                 if isinstance(v, datetime.datetime):
                     dict_fields[k] = v.strftime('%Y-%m-%d %H:%M:%S')
@@ -103,6 +110,10 @@ class ShardManager(models.Manager):
                         dict_fields[k] = 1
                     else:
                         dict_fields[k] = 0
+                elif v is None:
+                    delete_keys.append(k)
+            for delete in delete_keys:
+                del dict_fields[delete]
 
         placeholders = ', '.join(['%s'] * len(list_of_dicts[0]))
         columns = ', '.join(list_of_dicts[0].keys())
