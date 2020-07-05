@@ -1,14 +1,10 @@
 from django.db import connections
 from django.db.models.expressions import Col
 from django.db import models
+from .utils import copy_model, chunks
+import random
 import datetime
 import traceback
-
-
-def chunks(source_list, batch_size):
-    """Yield successive n-sized chunks from source_list."""
-    for i in range(0, len(source_list), batch_size):
-        yield source_list[i:i+batch_size]
 
 
 class ShardException(Exception):
@@ -24,29 +20,19 @@ class ShardManager(models.Manager):
         Usage: Model.objects.shard(1).all()
         """
         meta = getattr(self.model, '_meta')
-        meta._db = db
-        meta.db_table = '%s_%s_%s' % (
+        db_table = '%s_%s_%s' % (
             str(meta.app_label),
             str(self.model.__name__.lower()), table_suffix)
-        # Without clearing the concrete cached fields, we cannot switch between shards in a single session.
-        for f in meta.concrete_fields:
-            f.cached_col = Col(meta.db_table, f)
-        return super(ShardManager, self).using(self.db)
-
-    def default(self):
-        """
-        Use the original table.
-        Usage: Model.objects.default().all()
-        """
-        meta = getattr(self.model, '_meta')
-        meta.db_table = '%s_%s' % (
-            str(meta.app_label),
-            str(self.model.__name__.lower()))
-        meta._db = 'default'
-        # Without clearing the concrete cached fields, we cannot switch between shards in a single session.
-        for f in meta.concrete_fields:
-            f.cached_col = Col(meta.db_table, f)
-        return super(ShardManager, self).using(self.db)
+        model_name = 'ShardedModel-%s' % random.randint(999999999, 9999999999999999)
+        self.model = copy_model(
+            model_name,
+            self.model,
+            options={'db_table': db_table, 'auto_created': False}
+        )
+        new_meta = getattr(self.model, '_meta')
+        for f in new_meta.concrete_fields:
+            f.cached_col = Col(db_table, f)
+        return super(ShardManager, self).using(db)
 
     def create(self, table_suffix, db='default', **kwargs):
         meta = getattr(self.model, '_meta')
@@ -170,28 +156,5 @@ class ShardedModel(models.Model):
 
     objects = ShardManager()
 
-    def save(self, *args, **kwargs):
-        if len(args) > 0:
-            shard = args[0]
-            db_table = '%s_%s_%s' % (self._meta.app_label, str(self._meta.model.__name__).lower(), shard)
-            self._meta.db_table = db_table
-            for f in self._meta.concrete_fields:
-                f.cached_col = Col(self._meta.db_table, f)
-            return super(ShardedModel, self).save(**kwargs)
-        else:
-            raise ShardException('No shard/table suffix specified in save.')
-
-    def delete(self, *args, **kwargs):
-        if len(args) > 0:
-            shard = args[0]
-            db_table = '%s_%s_%s' % (self._meta.app_label, str(self._meta.model.__name__).lower(), shard)
-            self._meta.db_table = db_table
-            for f in self._meta.concrete_fields:
-                f.cached_col = Col(self._meta.db_table, f)
-            return super(ShardedModel, self).delete(**kwargs)
-        else:
-            raise ShardException('No shard/table suffix specified in delete.')
-
     class Meta:
         abstract = True
-
