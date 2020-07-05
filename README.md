@@ -58,5 +58,5 @@ Example Usage
 `Person.objects.shard_exists(5)`
 - Returns True/False if (shard) exists in the database. If it doesn't exist, you can create it with copy_table().
 
-`person.save(1)`
+`person.save()`
 - Saves a model instance to the specified shard.
