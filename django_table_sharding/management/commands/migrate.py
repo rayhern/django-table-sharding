@@ -95,8 +95,6 @@ class Command(MigrationCommand):
                                                 if field.primary_key is True:
                                                     fk_primary_key = field.column
 
-                                    print('fk table: %s. fk primary key: %s.' % (fk_table, fk_primary_key))
-
                         for m in all_models:
                             if str(m.__name__).lower() == model_name:
                                 meta = getattr(m, '_meta')

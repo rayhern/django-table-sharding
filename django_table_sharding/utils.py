@@ -1,5 +1,6 @@
 from django.db import models
 from django.apps.registry import apps
+from django.db.models.expressions import Col
 
 
 def chunks(source_list, batch_size):
@@ -31,7 +32,7 @@ class ModelRegistry:
             raise LookupError("'{}' not found.".format(model_name)) from err
 
 
-def copy_model(name, model_to_copy, options=None):
+def copy_model(name, model_to_copy, db_table, options=None):
     """
     Deep copy a model's fields and database attributes, so that we don't modify the
     original models table.
@@ -65,7 +66,7 @@ def copy_model(name, model_to_copy, options=None):
     if fields:
         names = types = []
         copy_meta = getattr(model_to_copy, '_meta')
-        for item in copy_meta.local_fields:
+        for item in copy_meta.concrete_fields:
             names.append(item.name)
             types.append(item)
         field_dict = dict(zip(names, types))
@@ -75,5 +76,9 @@ def copy_model(name, model_to_copy, options=None):
 
     # Remove from model registry immediately so it doesn't complain about us changing the model.
     ModelRegistry(app_label).unregister_model(name)
+
+    new_meta = getattr(model, '_meta')
+    for f in new_meta.concrete_fields:
+        f.cached_col = Col(db_table, f)
 
     return model

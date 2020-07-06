@@ -1,14 +1,19 @@
 from django.db import connections
-from django.db.models.expressions import Col
 from django.db import models
 from .utils import copy_model, chunks
 import random
 import datetime
 import traceback
+import threading
+import multiprocessing
 
 
 class ShardException(Exception):
     pass
+
+
+THREAD_LOCK = threading.Lock()
+FORK_LOCK = multiprocessing.Lock()
 
 
 # Specific model manager to not only work with sharding, but also to work with migrations.
@@ -19,19 +24,19 @@ class ShardManager(models.Manager):
         Use a shard of the table and set it to the model.
         Usage: Model.objects.shard(1).all()
         """
+        global THREAD_LOCK, FORK_LOCK
         meta = getattr(self.model, '_meta')
         db_table = '%s_%s_%s' % (
             str(meta.app_label),
             str(self.model.__name__.lower()), table_suffix)
         model_name = 'ShardedModel-%s' % random.randint(999999999, 9999999999999999)
-        self.model = copy_model(
-            model_name,
-            self.model,
-            options={'db_table': db_table, 'auto_created': False}
-        )
-        new_meta = getattr(self.model, '_meta')
-        for f in new_meta.concrete_fields:
-            f.cached_col = Col(db_table, f)
+        with THREAD_LOCK and FORK_LOCK:
+            self.model = copy_model(
+                model_name,
+                self.model,
+                db_table,
+                options={'db_table': db_table, 'auto_created': False}
+            )
         return super(ShardManager, self).using(db)
 
     def create(self, table_suffix, db='default', **kwargs):
@@ -73,7 +78,7 @@ class ShardManager(models.Manager):
         except:
             raise ShardException(traceback.format_exc())
 
-    def bulk_create(self, table_suffix, list_of_dicts, batch_size=5, ignore_conflicts=False, db='default'):
+    def bulk_create(self, table_suffix, list_of_dicts, batch_size=1, ignore_conflicts=False, db='default'):
         if len(list_of_dicts) == 0:
             raise ShardException('List of dict field values not defined.')
 
